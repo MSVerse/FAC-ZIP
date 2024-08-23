@@ -1,17 +1,55 @@
+import os
 import zipfile
-import itertools
-import threading
 import time
-import string
-import sys
+import colorama
+from colorama import Fore, Style
 
-def print_banner():
-    banner = """
-⠀⠀⠀⣠⠂⢀⣠⡴⠂⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠐⢤⣄⠀⠐⣄⠀⠀⠀
-⠀⢀⣾⠃⢰⣿⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⣿⡆⠸⣧⠀⠀
-⢀⣾⡇⠀⠘⣿⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢰⣿⠁⠀⢹⣧⠀
-⢸⣿⠀⠀⠀⢹⣷⣀⣤⣤⣀⣀⣠⣶⠂⠰⣦⡄⢀⣤⣤⣀⣀⣾⠇⠀⠀⠈⣿⡆
-⣿⣿⠀⠀⠀⠀⠛⠛⢛⣛⣛⣿⣿⣿⣶⣾⣿⣿⣿⣛⣛⠛⠛⠛⠀⠀⠀⠀⣿⣷
+colorama.init(autoreset=True)
+
+class ZipBruteForcer:
+    def __init__(self, zip_filename, wordlist, log_file='FAC-ZIP.log'):
+        self.zip_filename = zip_filename
+        self.wordlist = wordlist
+        self.log_file = log_file
+        
+        if self.log_file:
+            log_dir = os.path.dirname(self.log_file)
+            if log_dir and not os.path.exists(log_dir):
+                os.makedirs(log_dir)
+        
+    def brute_force(self):
+        zip_file = zipfile.ZipFile(self.zip_filename)
+        found_password = None
+        start_time = time.time()
+        
+        with open(self.wordlist, 'r') as f:
+            for line in f:
+                password = line.strip()
+                try:
+                    zip_file.extractall(pwd=password.encode('utf-8'))
+                    found_password = password
+                    break
+                except:
+                    continue
+
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        
+        if found_password:
+            print(Fore.GREEN + f"[+] Password found: {found_password}")
+            print(Fore.YELLOW + f"[+] Time taken: {elapsed_time:.2f} seconds")
+            with open(self.log_file, 'a') as log:
+                log.write(f"{self.zip_filename} {found_password} {time.strftime('%Y-%m-%d %H:%M:%S')} Elapsed time: {elapsed_time:.2f} seconds\n")
+        else:
+            print(Fore.RED + "[-] Password not found.")
+
+def main():
+    print(Fore.CYAN + """
+⠀⠀⠀⣠⠂⢀⣠⡴⠂⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠐⢤⣄⠀⠐⣄⠀⠀⠀
+⠀⢀⣾⠃⢰⣿⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⣿⡆⠸⣧⠀⠀
+⢀⣾⡇⠀⠘⣿⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢰⣿⠁⠀⢹⣧⠀
+⢸⣿⠀⠀⠀⢹⣷⣀⣤⣤⣀⣀⣠⣶⠂⠰⣦⡄⢀⣤⣤⣀⣀⣾⠇⠀⠀⠀⠈⣿⡆
+⣿⣿⠀⠀⠀⠀⠛⠛⢛⣛⣛⣿⣿⣿⣶⣾⣿⣿⣿⣛⣛⠛⠛⠛⠀⠀⠀⠀⠀⣿⣷
 ⣿⣿⣀⣀⠀⠀⢀⣴⣿⠿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣦⡀⠀⠀⣀⣠⣿⣿
 ⠛⠻⠿⠿⣿⣿⠟⣫⣶⡿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣦⣙⠿⣿⣿⠿⠿⠛⠋
 ⠀⠀⠀⠀⠀⣠⣾⠟⣯⣾⠟⣻⣿⣿⣿⣿⣿⣿⡟⠻⣿⣝⠿⣷⣌⠀⠀⠀⠀⠀
@@ -27,90 +65,17 @@ def print_banner():
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢿⡄⠀⠀⠀⠀⣰⡿⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⠆⠀⠀⠐⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
               FAC-ZIP
-    """
-    print(banner)
 
-class ZipBruteForcer:
-    def __init__(self, zip_filename, max_len=4, num_threads=10, charset=None, wordlist=None):
-        self.zip_filename = zip_filename
-        self.max_len = max_len
-        self.num_threads = num_threads
-        self.charset = charset or string.ascii_letters + string.digits
-        self.wordlist = wordlist
-        self.found = False
-        self.lock = threading.Lock()
+Author: msverse
+Homepage: https://msversee.blogspot.com
+Version: 2.0.0
+""")
 
-    def attempt_password(self, password):
-        try:
-            with zipfile.ZipFile(self.zip_filename, 'r') as zf:
-                zf.extractall(pwd=password.encode('utf-8'))
-            return True
-        except:
-            return False
-
-    def bruteforce(self, start_index, end_index):
-        for i in range(start_index, end_index):
-            if self.found:
-                return
-            password = ''.join(itertools.product(self.charset, repeat=i))
-            if self.attempt_password(password):
-                with self.lock:
-                    self.found = True
-                    print(f'[+] Password found: {password}')
-                    sys.exit(0)
-
-    def wordlist_attack(self):
-        if not self.wordlist:
-            print("[-] No wordlist provided.")
-            return
-
-        with open(self.wordlist, 'r') as file:
-            for line in file:
-                if self.found:
-                    return
-                password = line.strip()
-                if self.attempt_password(password):
-                    with self.lock:
-                        self.found = True
-                        print(f'[+] Password found: {password}')
-                        sys.exit(0)
-
-    def start(self):
-        if self.wordlist:
-            print("[*] Starting wordlist attack...")
-            self.wordlist_attack()
-        else:
-            print("[*] Starting brute-force attack...")
-            threads = []
-            for i in range(1, self.max_len + 1):
-                for j in range(self.num_threads):
-                    start_index = int(j * (len(self.charset) ** i) / self.num_threads)
-                    end_index = int((j + 1) * (len(self.charset) ** i) / self.num_threads)
-                    t = threading.Thread(target=self.bruteforce, args=(start_index, end_index))
-                    threads.append(t)
-                    t.start()
-
-            for t in threads:
-                t.join()
-
-        if not self.found:
-            print("[-] Password not found.")
+    zip_filename = input(Fore.YELLOW + "[*] Enter ZIP file path: ")
+    wordlist = input(Fore.YELLOW + "[*] Enter wordlist file path: ")
+    
+    brute_forcer = ZipBruteForcer(zip_filename, wordlist)
+    brute_forcer.brute_force()
 
 if __name__ == "__main__":
-    print_banner()
-    zip_filename = input("[*] Enter ZIP file path: ")
-    mode = input("[*] Choose attack mode (1 for brute-force, 2 for wordlist): ")
-
-    if mode == '1':
-        max_len = int(input("[*] Enter maximum password length: "))
-        num_threads = int(input("[*] Enter number of threads: "))
-        charset = input("[*] Enter character set (leave blank for default): ") or None
-        brute_forcer = ZipBruteForcer(zip_filename, max_len, num_threads, charset)
-        brute_forcer.start()
-
-    elif mode == '2':
-        wordlist = input("[*] Enter wordlist file path: ")
-        brute_forcer = ZipBruteForcer(zip_filename, wordlist=wordlist)
-        brute_forcer.start()
-    else:
-        print("[-] Invalid mode selected.")
+    main()
